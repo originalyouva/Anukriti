@@ -11,7 +11,7 @@ Anukriti is an interactive in-silico trial simulator that shows what a standard 
 The site is a single self-contained file with libraries and fonts embedded, so it works offline.
 
 - **Locally:** download the repository and open [`index.html`](index.html) in any modern browser.
-- **GitHub Pages:** in the repository go to *Settings → Pages*, choose *Deploy from a branch*, select `main` and `/ (root)`. The site is then served at `https://<your-username>.github.io/<repo-name>/`.
+- **GitHub Pages:** https://originalyouva.github.io/Anukriti/
 
 ## Abstract
 
