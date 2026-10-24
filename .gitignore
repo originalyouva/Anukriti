@@ -1,0 +1,16 @@
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Office temp/lock files
+~$*
+.~lock.*
+
+# Editors
+.vscode/
+.idea/
+
+# Local tooling
+.claude/
+node_modules/
