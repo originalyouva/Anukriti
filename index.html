@@ -358,6 +358,37 @@ html.gate-play body { overflow: hidden; }
   .cover .hero-read .big { font-size: clamp(2.4rem, 1.4rem + 2.4vw, 3.6rem); }
 }
 
+/* ═══ back to the books ═══════════════════════════════════════════════════
+   The landing is the page's front door and stays on its hinges, so the
+   header carries a way back to it. The control only appears when the gate
+   script is alive and able to reopen (see gate-live). */
+html:not(.gate-live) #books-btn { display: none; }
+#books-btn .ic { transition: transform .2s cubic-bezier(.2, .8, .2, 1); }
+#books-btn:hover .ic { transform: translateY(-1.5px); }
+@media (max-width: 900px) { #books-btn .books-lb { display: none; } }
+
+/* ═══ stat read-outs: keep a long number inside its own column ════════════
+   .stat .v is monospaced and nowrap, so a ten-figure rupee value overran its
+   grid column. Each .stat is its own inline-size container, and the font is
+   capped at the size that the row's longest value (--ch, set in renderStats)
+   can fit. Short values are untouched; a row only shrinks when it must, and
+   shrinks as one so the figures stay visually level. */
+.stats .stat { container-type: inline-size; }
+/* The first cell carries no left padding, so it would otherwise be the one
+   wide column and set its number a size larger than the rest; the width goes
+   to its right-hand gutter instead, which keeps every cell's text box equal
+   and the row's figures level. */
+.stats .stat:first-child { padding-right: 36px; }
+.stats .stat .v {
+  font-size: min(clamp(2rem, 1.4rem + 1.6vw, 3.05rem),
+                 calc(100cqw / (var(--ch, 6) * .58)));
+}
+@media (max-width: 760px) {
+  .stats .stat .v {
+    font-size: min(clamp(1.6rem, 7vw, 2.2rem), calc(100cqw / (var(--ch, 6) * .58)));
+  }
+}
+
 
 /* ═══ base ═══════════════════════════════════════════════════════════════ */
 *, *::before, *::after { box-sizing: border-box; }
@@ -1067,6 +1098,7 @@ html[data-motion="reduce"] .mech-step { position: static; }
 <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
   <defs>
     <!-- One stroke weight, one 24-unit grid. -->
+    <symbol id="i-books" viewBox="0 0 24 24"><path d="M4.4 19.2V5.6a1 1 0 0 1 1-1h2.1a1 1 0 0 1 1 1v13.6a1 1 0 0 1-1 1H5.4a1 1 0 0 1-1-1Z"/><path d="M10.4 19.2V5.6a1 1 0 0 1 1-1h2.1a1 1 0 0 1 1 1v13.6a1 1 0 0 1-1 1h-2.1a1 1 0 0 1-1-1Z"/><path d="m17.1 6.1 2 .4a1 1 0 0 1 .8 1.2l-2.2 11.8a1 1 0 0 1-1.2.8l-.3-.1"/></symbol>
     <symbol id="i-cohort" viewBox="0 0 24 24"><circle cx="6" cy="15" r="1.6"/><circle cx="11" cy="9" r="1.6"/><circle cx="16" cy="13" r="1.6"/><circle cx="19" cy="6" r="1.6"/><path d="M3 18.5h18"/></symbol>
     <symbol id="i-question" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M9.6 9.4a2.5 2.5 0 1 1 3.5 2.3c-.7.3-1.1.9-1.1 1.6v.6M12 16.6v.1"/></symbol>
     <symbol id="i-mechanism" viewBox="0 0 24 24"><circle cx="4.5" cy="12" r="2"/><rect x="9.5" y="10" width="4" height="4"/><path d="M6.5 12h3M13.5 12h3M16.5 12l3-3v6z"/></symbol>
@@ -1164,6 +1196,9 @@ html[data-motion="reduce"] .mech-step { position: static; }
     var a = e.target && e.target.closest && e.target.closest('.gate a[data-ch]');
     if (!a) return;
     setTimeout(function () {                  /* no-op once the gate has gone */
+      /* gate.js is alive and owns the door: it hides the gate rather than
+         removing it, so that the reader can come back to the books. */
+      if (d.classList.contains('gate-live')) return;
       if (!d.classList.contains('gate-play')) return;
       d.classList.remove('gate-play');
       var g = document.getElementById('gate'); if (g) g.remove();
@@ -1226,6 +1261,9 @@ html[data-motion="reduce"] .mech-step { position: static; }
     <ol id="strip"></ol>
   </nav>
   <div class="headtools">
+    <button class="btn quiet" id="books-btn" type="button" aria-keyshortcuts="B">
+      <svg class="ic" aria-hidden="true"><use href="#i-books"/></svg><span class="books-lb">Books</span><span class="sr-only">Back to the ten books</span>
+    </button>
     <button class="btn quiet" id="cmd-open" type="button" aria-haspopup="dialog" aria-keyshortcuts="Control+K Meta+K">
       <svg class="ic" aria-hidden="true"><use href="#i-command"/></svg><span class="kbd" id="cmd-kbd">Ctrl K</span><span class="sr-only">Open command palette</span>
     </button>
@@ -3018,6 +3056,7 @@ function stat(k, v, sub, opt) {
 }
 /* Update a stats row in place so the numbers count rather than flash. */
 function renderStats(host, list) {
+  host.style.setProperty('--ch', String(list.reduce((m, s) => Math.max(m, statWidth(s.v)), 4)));
   const old = $$('.stat', host);
   if (old.length !== list.length) {
     host.innerHTML = '';
@@ -3032,6 +3071,21 @@ function renderStats(host, list) {
     setNumber($('.v', n), s.v);
     const sub = $('.sub', n); if (sub) sub.innerHTML = s.sub || '';
   });
+}
+
+/* The printed width of a stat value, counted in monospace characters. Text
+   inside <small> is set at .38em, so it only counts for a fraction of one. */
+function statWidth(v) {
+  const s = String(v == null ? '' : v);
+  const strip = (x) => x.replace(/<[^>]+>/g, '').replace(/&[a-z]+;/gi, 'x');
+  let n = 0, i = 0;
+  s.replace(/<small[^>]*>([\s\S]*?)<\/small>/gi, (m, inner, at) => {
+    n += strip(s.slice(i, at)).length + strip(inner).length * 0.42;
+    i = at + m.length;
+    return m;
+  });
+  n += strip(s.slice(i)).length;
+  return Math.max(4, Math.round(n * 100) / 100);
 }
 
 function table(cols, rows, caption) {
@@ -5016,6 +5070,7 @@ function buildPalette() {
     .concat([
       { n: '3b', label: 'Run your own virtual trial', hint: 'chapter', run: () => go('bench') },
       { n: '3c', label: 'Single-patient explorer', hint: 'chapter', run: () => go('explorer') },
+      { n: '', label: 'Back to the ten books', hint: 'landing', run: () => { if (window.__gateReopen) window.__gateReopen(); } },
       { n: '', label: 'Run a fresh virtual trial', hint: 'action', run: () => { go('bench', { focus: false }); setTimeout(runBench, 300); $('#run').focus({ preventScroll: true }); } },
       { n: '', label: 'Switch genotype-guided therapy in the cohort', hint: 'action', run: () => { go('cohort', { focus: false }); $('#hero-cpic').click(); $('#hero-cpic').focus({ preventScroll: true }); } },
       { n: '', label: 'Recompute validation values in this browser', hint: 'action', run: () => { go('validation', { focus: false }); $('#val-rerun').click(); $('#val-rerun').focus({ preventScroll: true }); } },
@@ -5072,6 +5127,12 @@ function buildPalette() {
   $('[data-close]', pal).addEventListener('click', close);
   $('#cmd-open').addEventListener('click', open);
   return { open, close, isOpen: () => !pal.hidden };
+}
+
+/* ── back to the books ───────────────────────────────────────── */
+function bindBooks() {
+  const b = $('#books-btn');
+  if (b) b.addEventListener('click', () => { if (window.__gateReopen) window.__gateReopen(); });
 }
 
 /* ── keyboard routes ─────────────────────────────────────────────────────── */
@@ -5256,6 +5317,7 @@ function heroEntrance() {
   setTheme(themeMode);
   const palette = buildPalette();
   bindKeys(palette);
+  bindBooks();
 
   /* chapters with stored data render now; heavy ones compute on approach */
   const safe = (fn, name) => { try { fn(); } catch (err) { console.error('[anukriti] ' + name, err); } };
@@ -5323,7 +5385,11 @@ function heroEntrance() {
   'use strict';
   const root = document.documentElement;
   const gate = document.getElementById('gate');
-  if (!gate || !root.classList.contains('gate-play')) return;
+  if (!gate) return;
+  /* The gate is the front door on a hashless load. On a deep link the page
+     opens at a chapter instead, and the gate is built behind it so that the
+     reader can still walk back out to the books. */
+  const eager = root.classList.contains('gate-play');
 
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches
     || root.getAttribute('data-motion') === 'reduce';
@@ -5350,18 +5416,41 @@ function heroEntrance() {
   ];
   const N = CH.length;
 
-  /* ── handing a chapter to the page ─────────────────────────────────── */
-  let left = false;
+  /* ── the door swings both ways ─────────────────────────────────────────
+     Leaving hides the gate and parks its render loop; the scene, its WebGL
+     context and the books' positions are all kept, so coming back is
+     instant and the books stand where they stood. The chapters share one
+     renderer of their own, so two live contexts is the whole cost. */
+  let left = !eager;       /* true while the gate is hidden behind the page */
+  let owesIntro = eager;   /* this gate still has to hand the page its intro */
+  let seenPage = !eager;   /* the page behind has been opened at least once */
+  let ready = false;       /* the scene has finished initialising */
+  let gfade = null;         /* the in-flight opacity animation, if any */
+  let returnY = 0;         /* where the reader was when they came back here */
+
+  function fadeOut(done) {
+    gate.setAttribute('data-state', 'out');
+    if (gfade) { gfade.cancel(); gfade = null; }
+    if (reduce || !gate.animate) return done();
+    gfade = gate.animate([{ opacity: 1 }, { opacity: 0 }],
+      { duration: 460, easing: 'cubic-bezier(.4,0,.2,1)', fill: 'forwards' });
+    gfade.onfinish = done;
+  }
+
+  /* hand a chapter to the page's own navigator */
   function enter(id) {
     if (left) return;
     left = true;
-    gate.setAttribute('data-state', 'out');
-    const finish = () => {
+    if (!ready) aborted = true;      /* clicked through before the scene was up */
+    fadeOut(() => {
       root.classList.remove('gate-play');
-      gate.remove();
-      teardown();
-      window.__introDone = true;
-      window.dispatchEvent(new Event('anukriti:introdone'));   // starts lenis, inits the stages
+      pause();
+      seenPage = true;
+      if (owesIntro) {
+        owesIntro = false;
+        window.__introDone = true;
+        window.dispatchEvent(new Event('anukriti:introdone'));   // starts lenis, inits the stages
+      }
       requestAnimationFrame(() => {
         const target = document.getElementById(id);
         if (!target) return;
@@ -5375,13 +5464,49 @@ function heroEntrance() {
         const h = target.querySelector('h1, h2');
         if (h) { if (!h.hasAttribute('tabindex')) h.setAttribute('tabindex', '-1'); h.focus({ preventScroll: true }); }
       });
-    };
-    if (reduce || !gate.animate) return finish();
-    const a = gate.animate([{ opacity: 1 }, { opacity: 0 }],
-      { duration: 460, easing: 'cubic-bezier(.4,0,.2,1)', fill: 'forwards' });
-    a.onfinish = finish;
+    });
   }
+
+  /* come back to the books, from anywhere in the page */
+  function reopen() {
+    if (!left || !seenPage) return;
+    returnY = window.pageYOffset || document.documentElement.scrollTop || 0;
+    const L = window.__anukriti && window.__anukriti.lenis;
+    if (L) { try { L.stop(); } catch (err) { /* ignore */ } }
+    left = false;
+    if (gfade) { gfade.cancel(); gfade = null; }
+    if (ready) { inside = false; lastMove = -1e4; near = -1; }
+    root.classList.add('gate-play');
+    gate.setAttribute('data-state', 'in');
+    if (!reduce && gate.animate) {
+      gate.animate([{ opacity: 0 }, { opacity: 1 }],
+        { duration: 300, easing: 'cubic-bezier(.4,0,.2,1)' });
+    }
+    resume();
+    const a = gate.querySelector('.gate-row a[data-ch]');
+    if (a) { try { a.focus({ preventScroll: true }); } catch (err) { /* ignore */ } }
+  }
+
+  /* close the books again without picking one, landing where you left off */
+  function dismiss() {
+    if (left || !seenPage) return;
+    left = true;
+    fadeOut(() => {
+      root.classList.remove('gate-play');
+      pause();
+      const L = window.__anukriti && window.__anukriti.lenis;
+      if (L) { try { L.start(); if (L.resize) L.resize(); } catch (err) { /* ignore */ } }
+      if (L) L.scrollTo(returnY, { immediate: true });
+      else window.scrollTo(0, returnY);
+    });
+  }
+
   window.__gateEnter = enter;
+  window.__gateReopen = reopen;
+  window.__gateDismiss = dismiss;
+  window.__gateIsOpen = () => !left;
+  /* the page's own "Books" control only shows once this really is reversible */
+  root.classList.add('gate-live');
 
   gate.addEventListener('click', (e) => {
     const a = e.target.closest('a[data-ch]');
@@ -5389,6 +5514,23 @@ function heroEntrance() {
     e.preventDefault();
     enter(a.getAttribute('data-ch'));
   });
+
+  /* B comes back to the books; Escape closes them. Captured, so the page's
+     own chapter and theme keys stay quiet while the gate is up. */
+  addEventListener('keydown', (e) => {
+    const t = e.target, tag = (t && t.tagName) || '';
+    const typing = tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA' || (t && t.isContentEditable);
+    if (left) {
+      if (typing || e.metaKey || e.ctrlKey || e.altKey || !seenPage) return;
+      const pal = document.getElementById('palette');
+      if (pal && !pal.hasAttribute('hidden')) return;
+      if (e.key === 'b' || e.key === 'B') { e.preventDefault(); reopen(); }
+      return;
+    }
+    if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); dismiss(); }
+    else if (!typing && (e.key === '[' || e.key === ']' || e.key === '/'
+             || e.key === 't' || e.key === 'T')) e.stopPropagation();
+  }, true);
 
   /* ── covers, drawn here so the page still needs no network ─────────── */
   const CW = 448, CH_ = 672, px = (n) => n;
@@ -5606,18 +5748,37 @@ function heroEntrance() {
        { opacity: 1, transform: 'translateY(0)', filter: 'blur(0px)' }],
       { duration: dur, delay: delay, easing: 'cubic-bezier(.2,.8,.2,1)', fill: 'forwards' });
   }
-  reveal(document.getElementById('gate-mark'), 120, 1300, '4vh');
-  reveal(document.getElementById('gate-nav'), 620, 860, '-1.2vh');
-  reveal(document.getElementById('gate-row'), 760, 860, '1.2vh');
-  reveal(document.getElementById('gate-foot'), 980, 860, '.8vh');
+  if (eager) {
+    reveal(document.getElementById('gate-mark'), 120, 1300, '4vh');
+    reveal(document.getElementById('gate-nav'), 620, 860, '-1.2vh');
+    reveal(document.getElementById('gate-row'), 760, 860, '1.2vh');
+    reveal(document.getElementById('gate-foot'), 980, 860, '.8vh');
+  } else {
+    for (const id of ['gate-mark', 'gate-nav', 'gate-row', 'gate-foot']) {
+      const e = document.getElementById(id); if (e) e.style.opacity = 1;
+    }
+  }
+
+  /* Behind a chapter there is no hurry: let the page settle first so the
+     scene never competes with the stages the reader is actually looking at. */
+  if (!eager) await new Promise((done) => {
+    if (typeof requestIdleCallback === 'function') requestIdleCallback(() => done(), { timeout: 2600 });
+    else setTimeout(done, 1400);
+  });
 
   /* ── scene ─────────────────────────────────────────────────────────── */
-  let renderer = null, raf = 0;
+  let renderer = null, raf = 0, aborted = false;
+  function pause() { if (raf) cancelAnimationFrame(raf); raf = 0; }
+  function resume() {
+    if (!ready || raf || left) return;
+    prev = performance.now();
+    raf = requestAnimationFrame(frame);
+  }
   function teardown() {
-    if (raf) cancelAnimationFrame(raf);
-    raf = 0;
+    pause();
     if (renderer) { renderer.dispose(); renderer.forceContextLoss(); renderer = null; }
   }
+  addEventListener('pagehide', teardown);
 
   const srcEl = document.getElementById('three-src');
   const cv = document.getElementById('gate-gl');
@@ -5634,7 +5795,7 @@ function heroEntrance() {
     gate.setAttribute('data-gl', 'off');
     return;
   }
-  if (left) return;
+  if (aborted) return;
 
   renderer = new T.WebGLRenderer({ canvas: cv, antialias: true, alpha: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
@@ -5796,7 +5957,7 @@ function heroEntrance() {
   }
 
   const fonts = document.fonts;
-  const go = () => { if (!left) { prev = performance.now(); raf = requestAnimationFrame(frame); } };
+  const go = () => { ready = true; resume(); };
   if (fonts && fonts.load) {
     Promise.all([
       fonts.load('300 62px Newsreader'), fonts.load('400 14px "IBM Plex Sans"'),
